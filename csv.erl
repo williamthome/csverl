@@ -36,16 +36,21 @@ default_scan_options() -> #{first_row_index     => 1,
 
 do_scan(Bin0, In, {Row, Col}, Cache, Buffer, #{first_row_index := FirstRow} = Options, Acc)
     when Row < FirstRow ->
-      Bin =
-        case binary:split(Bin0, <<"\n">>) of
-            [_, X] -> X;
-            [X] -> X
-        end,
-      do_scan(Bin, In, {Row + 1, Col}, Cache, Buffer, Options, Acc);
+    Bin = case binary:split(Bin0, <<"\n">>) of
+              [_, X] -> X;
+              [X] -> X
+          end,
+    do_scan(Bin, In, {Row + 1, Col}, Cache, Buffer, Options, Acc);
 
-do_scan(Bin, In, {Row, Col}, Cache, Buffer, #{first_column_index := FirstCol} = Options, Acc)
+do_scan(Bin0, In, {Row, Col}, Cache, Buffer, #{first_column_index := FirstCol} = Options, Acc)
     when Col < FirstCol ->
-      do_scan(Bin, In, {Row, Col + 1}, Cache, Buffer, Options, Acc);
+    RePattern = ",(?!(?=[^\"]*\"[^\"]*(?:\"[^\"]*\"[^\"]*)*$))",
+    ReOptions = [{parts, 2}],
+    Bin = case re:split(Bin0, RePattern, ReOptions) of
+              [_, X] -> X;
+              [X] -> X
+          end,
+    do_scan(Bin, In, {Row, Col + 1}, Cache, Buffer, Options, Acc);
 
 do_scan(<<",\"", Bin/binary>>, data, Cursor, Cache, Buffer, Options, Acc) ->
     put_column_and_do_scan(<<",\"">>, Bin, text, Cursor, Cache, Buffer, Options, Acc);
