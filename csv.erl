@@ -2,8 +2,8 @@
 
 -export([
     scan_file/0,
-    scan_bin/1,
-    scan_bin/2
+    scan/1,
+    scan/2
 ]).
 
 scan_file() ->
@@ -13,78 +13,78 @@ scan_file() ->
                 first_column_index  => 1,
                 first_row_is_header => true},
     case rwrite(Filename, Content) of
-        {ok, Bin} -> scan_bin(Bin, Options);
+        {ok, Bin} -> scan(Bin, Options);
         {error, Reason} -> {error, Reason}
     end.
 
-scan_bin(Bin) ->
+scan(Bin) ->
     Options = maps:new(),
-    scan_bin(Bin, Options).
+    scan(Bin, Options).
 
-scan_bin(Bin, Options0) ->
+scan(Bin, Options0) ->
     In = data,
     Cursor = {1, 1},
     Cache = {#{}, <<>>},
     Buffer = <<>>,
     Acc = [],
     Options = maps:merge(default_scan_options(), Options0),
-    do_scan_bin(Bin, In, Cursor, Cache, Buffer, Options, Acc).
+    do_scan(Bin, In, Cursor, Cache, Buffer, Options, Acc).
 
 default_scan_options() -> #{first_row_index     => 1,
                             first_column_index  => 1,
                             first_row_is_header => true}.
 
-do_scan_bin(Bin0, In, {Row, Col}, Cache, Buffer, #{first_row_index := FirstRow} = Options, Acc)
+do_scan(Bin0, In, {Row, Col}, Cache, Buffer, #{first_row_index := FirstRow} = Options, Acc)
     when Row < FirstRow ->
       Bin =
         case binary:split(Bin0, <<"\n">>) of
             [_, X] -> X;
             [X] -> X
         end,
-      do_scan_bin(Bin, In, {Row + 1, Col}, Cache, Buffer, Options, Acc);
+      do_scan(Bin, In, {Row + 1, Col}, Cache, Buffer, Options, Acc);
 
-do_scan_bin(Bin, In, {Row, Col}, Cache, Buffer, #{first_column_index := FirstCol} = Options, Acc)
+do_scan(Bin, In, {Row, Col}, Cache, Buffer, #{first_column_index := FirstCol} = Options, Acc)
     when Col < FirstCol ->
-      do_scan_bin(Bin, In, {Row, Col + 1}, Cache, Buffer, Options, Acc);
+      do_scan(Bin, In, {Row, Col + 1}, Cache, Buffer, Options, Acc);
 
-do_scan_bin(<<",\"", Bin/binary>>, data, Cursor, Cache, Buffer, Options, Acc) ->
-    do_scan_bin_column(<<",\"">>, Bin, text, Cursor, Cache, Buffer, Options, Acc);
+do_scan(<<",\"", Bin/binary>>, data, Cursor, Cache, Buffer, Options, Acc) ->
+    put_column_and_do_scan(<<",\"">>, Bin, text, Cursor, Cache, Buffer, Options, Acc);
 
-do_scan_bin(<<"\",", Bin/binary>>, text, Cursor, Cache, Buffer, Options, Acc) ->
-    do_scan_bin_column(<<"\",">>, Bin, data, Cursor, Cache, Buffer, Options, Acc);
+do_scan(<<"\",", Bin/binary>>, text, Cursor, Cache, Buffer, Options, Acc) ->
+    put_column_and_do_scan(<<"\",">>, Bin, data, Cursor, Cache, Buffer, Options, Acc);
 
-do_scan_bin(<<"\"", Bin/binary>>, text, Cursor, Cache, Buffer, Options, Acc) ->
-    do_scan_bin_append(<<"\"">>, Bin, text, Cursor, Cache, Buffer, Options, Acc);
+do_scan(<<"\"", Bin/binary>>, text, Cursor, Cache, Buffer, Options, Acc) ->
+    concat_head_and_do_scan(<<"\"">>, Bin, text, Cursor, Cache, Buffer, Options, Acc);
 
-do_scan_bin(<<",", Bin/binary>>, data, Cursor, Cache, Buffer, Options, Acc) ->
-    do_scan_bin_column(<<",">>, Bin, data, Cursor, Cache, Buffer, Options, Acc);
+do_scan(<<",", Bin/binary>>, data, Cursor, Cache, Buffer, Options, Acc) ->
+    put_column_and_do_scan(<<",">>, Bin, data, Cursor, Cache, Buffer, Options, Acc);
 
-do_scan_bin(<<"\n", Bin/binary>>, _In, {Row, Col}, {RowAcc0, ColAcc}, Buffer0, Options, Acc0) ->
+do_scan(<<"\n", Bin/binary>>, _In, {Row, Col}, {RowAcc0, ColAcc}, Buffer0, Options, Acc0) ->
     RowAcc = maps:put(Col, ColAcc, RowAcc0),
     Cache = {#{}, <<>>},
     Cursor = {Row + 1, 1},
     Acc = [RowAcc | Acc0],
     Buffer = <<Buffer0/binary, "\n">>,
-    do_scan_bin(Bin, data, Cursor, Cache, Buffer, Options, Acc);
+    do_scan(Bin, data, Cursor, Cache, Buffer, Options, Acc);
 
-do_scan_bin(<<H, Bin/binary>>, In, Cursor, Cache, Buffer, Options, Acc) ->
-    do_scan_bin_append(H, Bin, In, Cursor, Cache, Buffer, Options, Acc);
+do_scan(<<H, Bin/binary>>, In, Cursor, Cache, Buffer, Options, Acc) ->
+    concat_head_and_do_scan(H, Bin, In, Cursor, Cache, Buffer, Options, Acc);
 
-do_scan_bin(<<>>, _In, _Cursor, _Cache, _Buffer, _Options, Acc) ->
+do_scan(<<>>, _In, _Cursor, _Cache, _Buffer, _Options, Acc) ->
     lists:reverse(Acc).
 
-do_scan_bin_column(H, Bin, In, {Row, Col}, {RowAcc0, ColAcc}, Buffer0, Options, Acc) ->
+put_column_and_do_scan(H, Bin, In, {Row, Col}, {RowAcc0, ColAcc}, Buffer0, Options, Acc) ->
     RowAcc = maps:put(Col, ColAcc, RowAcc0),
     Cache = {RowAcc, <<>>},
     Cursor = {Row, Col + 1},
     Buffer = <<Buffer0/binary, H/binary>>,
-    do_scan_bin(Bin, In, Cursor, Cache, Buffer, Options, Acc).
+    do_scan(Bin, In, Cursor, Cache, Buffer, Options, Acc).
 
-do_scan_bin_append(H, Bin, In, Cursor, {RowAcc, ColAcc0}, Buffer0, Options, Acc) ->
+concat_head_and_do_scan(H, Bin, In, Cursor, {RowAcc, ColAcc0}, Buffer0, Options, Acc) ->
     ColAcc = <<ColAcc0/binary, H>>,
     Cache = {RowAcc, ColAcc},
     Buffer = <<Buffer0/binary, H>>,
-    do_scan_bin(Bin, In, Cursor, Cache, Buffer, Options, Acc).
+    do_scan(Bin, In, Cursor, Cache, Buffer, Options, Acc).
 
 rwrite(Filename, Content) ->
     case file:read_file(Filename) of
