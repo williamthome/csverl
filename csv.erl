@@ -9,11 +9,9 @@
 scan_file() ->
     Filename = "simpsons.csv",
     Content = simpsons(),
-    Options = #{
-        first_row_index => 1,
-        first_column_index => 1,
-        first_row_is_header => true
-    },
+    Options = #{first_row_index     => 1,
+                first_column_index  => 1,
+                first_row_is_header => true},
     case rwrite(Filename, Content) of
         {ok, Bin} -> scan_bin(Bin, Options);
         {error, Reason} -> {error, Reason}
@@ -23,13 +21,31 @@ scan_bin(Bin) ->
     Options = maps:new(),
     scan_bin(Bin, Options).
 
-scan_bin(Bin, Options) ->
+scan_bin(Bin, Options0) ->
     In = data,
     Cursor = {1, 1},
     Cache = {#{}, <<>>},
     Buffer = <<>>,
     Acc = [],
+    Options = maps:merge(default_scan_options(), Options0),
     do_scan_bin(Bin, In, Cursor, Cache, Buffer, Options, Acc).
+
+default_scan_options() -> #{first_row_index     => 1,
+                            first_column_index  => 1,
+                            first_row_is_header => true}.
+
+do_scan_bin(Bin0, In, {Row, Col}, Cache, Buffer, #{first_row_index := FirstRow} = Options, Acc)
+    when Row < FirstRow ->
+      Bin =
+        case binary:split(Bin0, <<"\n">>) of
+            [_, X] -> X;
+            [X] -> X
+        end,
+      do_scan_bin(Bin, In, {Row + 1, Col}, Cache, Buffer, Options, Acc);
+
+do_scan_bin(Bin, In, {Row, Col}, Cache, Buffer, #{first_column_index := FirstCol} = Options, Acc)
+    when Col < FirstCol ->
+      do_scan_bin(Bin, In, {Row, Col + 1}, Cache, Buffer, Options, Acc);
 
 do_scan_bin(<<",\"", Bin/binary>>, data, Cursor, Cache, Buffer, Options, Acc) ->
     do_scan_bin_column(<<",\"">>, Bin, text, Cursor, Cache, Buffer, Options, Acc);
