@@ -1,3 +1,3 @@
 *.beam
-simpsons.csv
-eunit-events.log
+*.csv
+*.log
