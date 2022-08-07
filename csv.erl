@@ -24,9 +24,11 @@
 -type read_file_error() :: file:posix() | badarg | terminated | system_limit.
 -type scan_options()    :: #{first_row_index     => pos_integer(),
                              first_column_index  => pos_integer(),
-                             first_row_is_header => boolean()}.
--type scan_result()     :: {ok, [#{binary() => binary()}]}
+                             first_row_is_header => boolean(),
+                             transform => transform()}.
+-type scan_result()     :: {ok, [#{binary() => term()}]}
                            | {error, read_file_error()}.
+-type transform()       :: #{binary() => fun((binary()) -> term())}.
 
 %%%=============================================================================
 %%% API
@@ -96,7 +98,8 @@ scan(Bin, Options0) ->
 
 default_scan_options() -> #{first_row_index     => 1,
                             first_column_index  => 1,
-                            first_row_is_header => false}.
+                            first_row_is_header => false,
+                            transform           => #{}}.
 
 do_scan(Bin0, In, {Row, Col}, Cache, Buffer, Headers,
         #{first_row_index := FirstRow} = Options, Acc)
@@ -199,7 +202,12 @@ do_put_column_and_do_scan(H, Bin, In, {Row, Col} = Cursor0, Cache0, Buffer0,
 maybe_put_column({FirstRow, _Col}, _Cache, _ColName,
                  #{first_row_index := FirstRow, first_row_is_header := true}) ->
     maps:new();
-maybe_put_column(_Cursor, {RowAcc, ColAcc}, ColName, _Options) ->
+maybe_put_column(_Cursor, {RowAcc, ColAcc0}, ColName,
+                 #{transform := Transform}) ->
+    ColAcc = case maps:get(ColName, Transform, undefined) of
+                 undefined -> ColAcc0;
+                 ColTransform -> ColTransform(ColAcc0)
+             end,
     maps:put(ColName, ColAcc, RowAcc).
 
 concat_head_and_do_scan(H, Bin, In, Cursor, {RowAcc, ColAcc0}, Buffer0,
