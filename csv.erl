@@ -20,15 +20,16 @@
 -export_type([filename/0, scan_options/0, scan_result/0]).
 
 %% Data types
+-type column()          :: binary() | integer().
 -type filename()        :: file:name_all().
 -type read_file_error() :: file:posix() | badarg | terminated | system_limit.
 -type scan_options()    :: #{first_row_index     => pos_integer(),
                              first_column_index  => pos_integer(),
                              first_row_is_header => boolean(),
                              transform => transform()}.
--type scan_result()     :: {ok, [#{binary() => term()}]}
+-type scan_result()     :: {ok, [#{column() => term()}]}
                            | {error, read_file_error()}.
--type transform()       :: #{binary() => fun((binary()) -> term())}.
+-type transform()       :: #{column() => fun((binary()) -> term())}.
 
 %%%=============================================================================
 %%% API
@@ -179,7 +180,7 @@ headers(_Cursor, _Cache, Headers, _Options) ->
 colname({_Row, Col}, {_RowAcc, ColAcc}, Options) ->
     case maps:get(first_row_is_header, Options) of
         true -> ColAcc;
-        false -> <<Col/integer>>
+        false -> Col
     end.
 
 cursor_colname({_Row, Col}, Headers, #{first_column_index := FirstCol}) ->
@@ -187,7 +188,7 @@ cursor_colname({_Row, Col}, Headers, #{first_column_index := FirstCol}) ->
     do_cursor_colname(ColIndex, Headers).
 
 do_cursor_colname(ColIndex, Headers) when ColIndex > length(Headers) ->
-    <<ColIndex/integer>>;
+    ColIndex;
 do_cursor_colname(ColIndex, Headers) ->
     lists:nth(ColIndex, Headers).
 
