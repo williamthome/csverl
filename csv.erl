@@ -142,15 +142,19 @@ do_scan(<<"\n", Bin/binary>>, _In, {Row, _Col} = Cursor0, Cache0, Buffer0,
                   false -> Headers1
               end,
     ColName = cursor_colname(Cursor0, Headers, Options),
-    RowAcc = maybe_put_column(Cursor0, Cache0, ColName, Options),
-    Cache = {#{}, <<>>},
-    Cursor = {Row + 1, 1},
-    Acc = case map_size(RowAcc) =:= 0 of
-              true -> Acc0;
-              false -> [RowAcc | Acc0]
-          end,
-    Buffer = <<Buffer0/binary, "\n">>,
-    do_scan(Bin, data, Cursor, Cache, Buffer, Headers, Options, Acc);
+    case maybe_put_column(Cursor0, Cache0, ColName, Options) of
+        {ok, RowAcc} ->
+            Cache = {#{}, <<>>},
+            Cursor = {Row + 1, 1},
+            Acc = case map_size(RowAcc) =:= 0 of
+                    true -> Acc0;
+                    false -> [RowAcc | Acc0]
+                end,
+            Buffer = <<Buffer0/binary, "\n">>,
+            do_scan(Bin, data, Cursor, Cache, Buffer, Headers, Options, Acc);
+        {error, Reason} ->
+            {error, Reason}
+    end;
 
 do_scan(<<H, Bin/binary>>, In, Cursor, Cache, Buffer, Headers, Options, Acc) ->
     concat_head_and_do_scan(H, Bin, In, Cursor, Cache, Buffer, Headers, Options, Acc);
@@ -194,22 +198,42 @@ do_cursor_colname(ColIndex, Headers) ->
 
 do_put_column_and_do_scan(H, Bin, In, {Row, Col} = Cursor0, Cache0, Buffer0,
                           ColName, Headers, Options, Acc) ->
-    RowAcc = maybe_put_column(Cursor0, Cache0, ColName, Options),
-    Cache = {RowAcc, <<>>},
-    Cursor = {Row, Col + 1},
-    Buffer = <<Buffer0/binary, H/binary>>,
-    do_scan(Bin, In, Cursor, Cache, Buffer, Headers, Options, Acc).
+    case maybe_put_column(Cursor0, Cache0, ColName, Options) of
+        {ok, RowAcc} ->
+            Cache = {RowAcc, <<>>},
+            Cursor = {Row, Col + 1},
+            Buffer = <<Buffer0/binary, H/binary>>,
+            do_scan(Bin, In, Cursor, Cache, Buffer, Headers, Options, Acc);
+        {error, Reason} ->
+            {error, Reason}
+    end.
 
 maybe_put_column({FirstRow, _Col}, _Cache, _ColName,
                  #{first_row_index := FirstRow, first_row_is_header := true}) ->
-    maps:new();
-maybe_put_column(_Cursor, {RowAcc, ColAcc0}, ColName,
-                 #{transform := Transform}) ->
-    ColAcc = case maps:get(ColName, Transform, undefined) of
-                 undefined -> ColAcc0;
-                 ColTransform -> ColTransform(ColAcc0)
-             end,
-    maps:put(ColName, ColAcc, RowAcc).
+    {ok, maps:new()};
+maybe_put_column(Cursor, {RowAcc, _ColAcc0} = Cache, ColName, Options) ->
+    case transform(Cursor, Cache, ColName, Options) of
+        {ok, ColAcc} -> {ok, maps:put(ColName, ColAcc, RowAcc)};
+        {error, Reason} -> {error, Reason}
+    end.
+
+transform({Row, Col}, {RowAcc, ColAcc}, ColName,
+          #{transform := Transform} = Options) ->
+    case maps:get(ColName, Transform, undefined) of
+        undefined -> {ok, ColAcc};
+        ColTransform ->
+            try ColTransform(ColAcc) of
+                Transformed -> {ok, Transformed}
+            catch
+                Exception:Reason ->
+                    Info = #{exception => Exception,
+                             reason    => Reason,
+                             row       => #{index => Row, value => RowAcc},
+                             column    => #{index => Col, value => ColAcc},
+                             options   => Options},
+                    {error, {transform, Info}}
+            end
+    end.
 
 concat_head_and_do_scan(H, Bin, In, Cursor, {RowAcc, ColAcc0}, Buffer0,
                         Headers, Options, Acc) ->

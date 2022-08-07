@@ -198,6 +198,12 @@ scan2_test() ->
     Result = csv:scan(Data, Options),
     ?assertEqual(Expected, Result).
 
+scan3_test() ->
+    Data = fake_csv_data(),
+    Options = #{transform => #{3 => fun integer_to_binary/1}},
+    ?assertMatch({error, {transform, Reason}} when is_map(Reason),
+                 csv:scan(Data, Options)).
+
 scan_file_test() ->
     Filename = "simpsons.csv",
     ok = file:write_file(Filename, fake_csv_data()),
