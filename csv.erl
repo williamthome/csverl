@@ -1,18 +1,18 @@
 -module(csv).
 
 -export([
-    scan_file/0,
+    scan_file/1,
+    scan_file/2,
     scan/1,
     scan/2
 ]).
 
-scan_file() ->
-    Filename = "simpsons.csv",
-    Content = simpsons(),
-    Options = #{first_row_index     => 1,
-                first_column_index  => 1,
-                first_row_is_header => true},
-    case rwrite(Filename, Content) of
+scan_file(Filename) ->
+    Options = maps:new(),
+    scan_file(Filename, Options).
+
+scan_file(Filename, Options) ->
+    case file:read_file(Filename) of
         {ok, Bin} -> scan(Bin, Options);
         {error, Reason} -> {error, Reason}
     end.
@@ -88,7 +88,8 @@ do_scan(<<H, Bin/binary>>, In, Cursor, Cache, Buffer, Headers, Options, Acc) ->
     concat_head_and_do_scan(H, Bin, In, Cursor, Cache, Buffer, Headers, Options, Acc);
 
 do_scan(<<>>, _In, _Cursor, _Cache, _Buffer, _Headers, _Options, Acc) ->
-    lists:reverse(Acc).
+    ScanResult = lists:reverse(Acc),
+    {ok, ScanResult}.
 
 put_column_and_do_scan(H, Bin, In, {FirstRow, _Col} = Cursor, Cache, Buffer, Headers0, #{first_row_index := FirstRow} = Options, Acc) ->
     Headers = headers(Cursor, Cache, Headers0, Options),
@@ -136,36 +137,3 @@ concat_head_and_do_scan(H, Bin, In, Cursor, {RowAcc, ColAcc0}, Buffer0, Headers,
     Cache = {RowAcc, ColAcc},
     Buffer = <<Buffer0/binary, H>>,
     do_scan(Bin, In, Cursor, Cache, Buffer, Headers, Options, Acc).
-
-rwrite(Filename, Content) ->
-    case file:read_file(Filename) of
-        {ok, Bin} -> {ok, Bin};
-        {error, enoent} ->
-            case file:write_file(Filename, Content) of
-                ok ->
-                    case file:read_file(Filename) of
-                        {ok, Bin} -> {ok, Bin};
-                        {error, Reason} -> {error, Reason}
-                    end;
-                {error, Reason} -> {error, Reason}
-            end;
-        {error, Reason} -> {error, Reason}
-    end.
-
-simpsons() ->
-    <<"Name,Gentle,Phone Number,Email
-Homer Simpson,\"Simpson, Homer\",5551234422,homer@springfield.com
-Seymour Skinner,\"Skinner, Seymour\",1235663322,a@b.c
-Bart Simpson,\"Simpson, Bart\",2675465026,bart@spring.field
-Montgomery Burns,\"Burns, Montgomery\",2233459922,hi@bye.cya
-Mayor Quimby,\"Quimby, Mayor\",2222222222,mayor@springfield.gov
-Waylon Smithers,\"Smithers, Waylon\",3333333333,ok@hey.bye
-Barney Gumble,\"Gumble, Barney\",111111111111,barney@gumble.gum
-Marge Simpson,\"Simpson, Marge\",2627338461,marge@springfield.com
-Edna Krabappel,\"Krabappel, Edna\",2656898220,a@b.c
-Lisa Simpson,\"Simpson, Lisa\",2222222222,lisa@bix.com
-Maggie Simpson,\"Simpson, Maggie\",2716017739,maggie@spring.field
-Linel Hutz,\"Hutz, Linel\",2745577499,hire@now.me
-Troy McClure,\"McClure, Troy\",2314928822,troy@acting.now
-Rainer Wolfcastle,\"Wolfcastle, Rainer\",2221114455,rainer@acting.now
-Krusty Clown,\"Clown, Krusty\",2321221188,krusty@acting.now">>.
