@@ -106,12 +106,17 @@ headers(_Cursor, _Cache, Headers, _Options) ->
 
 colname({_Row, Col}, {_RowAcc, ColAcc}, Options) ->
     case maps:get(first_row_is_header, Options) of
-        false -> Col;
-        true -> ColAcc
+        true -> ColAcc;
+        false -> <<Col/integer>>
     end.
 
 cursor_colname({_Row, Col}, Headers, #{first_column_index := FirstCol}) ->
     ColIndex = Col - FirstCol + 1,
+    do_cursor_colname(ColIndex, Headers).
+
+do_cursor_colname(ColIndex, Headers) when ColIndex > length(Headers) ->
+    <<ColIndex/integer>>;
+do_cursor_colname(ColIndex, Headers) ->
     lists:nth(ColIndex, Headers).
 
 do_put_column_and_do_scan(H, Bin, In, {Row, Col} = Cursor0, Cache0, Buffer0, ColName, Headers, Options, Acc) ->
