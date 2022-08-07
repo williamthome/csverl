@@ -121,6 +121,9 @@ do_scan(Bin0, In, {Row, Col}, Cache, Buffer, Headers,
           end,
     do_scan(Bin, In, {Row, Col + 1}, Cache, Buffer, Headers, Options, Acc);
 
+do_scan(<<$\r, Bin/binary>>, In, Cursor, Cache, Buffer, Headers, Options, Acc) ->
+    do_scan(Bin, In, Cursor, Cache, Buffer, Headers, Options, Acc);
+
 do_scan(<<",\"", Bin/binary>>, data, Cursor, Cache, Buffer, Headers, Options, Acc) ->
     put_column_and_do_scan(<<",\"">>, Bin, text, Cursor, Cache, Buffer, Headers, Options, Acc);
 
