@@ -30,7 +30,7 @@ scan_test() ->
                     #{<<"Email">>        => <<"barney@gumble.gum">>,
                       <<"Gentle">>       => <<"Gumble, Barney">>,
                       <<"Name">>         => <<"Barney Gumble">>,
-                      <<"Phone Number">> => <<"111111111111">>},
+                      <<"Phone Number">> => <<"11111111111">>},
                     #{<<"Email">>        => <<"marge@springfield.com">>,
                       <<"Gentle">>       => <<"Simpson, Marge">>,
                       <<"Name">>         => <<"Marge Simpson">>,
@@ -94,7 +94,7 @@ scan1_test() ->
                       <<4>> => <<"ok@hey.bye">>},
                     #{<<1>> => <<"Barney Gumble">>,
                       <<2>> => <<"Gumble, Barney">>,
-                      <<3>> => <<"111111111111">>,
+                      <<3>> => <<"11111111111">>,
                       <<4>> => <<"barney@gumble.gum">>},
                     #{<<1>> => <<"Marge Simpson">>,
                       <<2>> => <<"Simpson, Marge">>,
@@ -146,7 +146,7 @@ Bart Simpson,\"Simpson, Bart\",2675465026,bart@spring.field
 Montgomery Burns,\"Burns, Montgomery\",2233459922,hi@bye.cya
 Mayor Quimby,\"Quimby, Mayor\",2222222222,mayor@springfield.gov
 Waylon Smithers,\"Smithers, Waylon\",3333333333,ok@hey.bye
-Barney Gumble,\"Gumble, Barney\",111111111111,barney@gumble.gum
+Barney Gumble,\"Gumble, Barney\",11111111111,barney@gumble.gum
 Marge Simpson,\"Simpson, Marge\",2627338461,marge@springfield.com
 Edna Krabappel,\"Krabappel, Edna\",2656898220,a@b.c
 Lisa Simpson,\"Simpson, Lisa\",2222222222,lisa@bix.com
