@@ -1,8 +1,8 @@
--module(csv_test).
+-module(csv_scan_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-scan_test() ->
+bin_test() ->
     ExpectedData = [#{<<"Email">>        => <<"homer@springfield.com">>,
                       <<"Gentle">>       => <<"\"Mr.\" Simpson, Homer">>,
                       <<"Name">>         => <<"Homer Simpson">>,
@@ -64,10 +64,10 @@ scan_test() ->
     Options = #{first_row_index     => 1,
                 first_column_index  => 1,
                 first_row_is_header => true},
-    Result = csv:scan(Data, Options),
+    Result = csv_scan:bin(Data, Options),
     ?assertEqual(Expected, Result).
 
-scan1_test() ->
+bin1_test() ->
     ExpectedData = [#{1 => <<"Homer Simpson">>,
                       2 => <<"\"Mr.\" Simpson, Homer">>,
                       3 => <<"5551234422">>,
@@ -129,10 +129,10 @@ scan1_test() ->
     Options = #{first_row_index     => 2,
                 first_column_index  => 1,
                 first_row_is_header => false},
-    Result = csv:scan(Data, Options),
+    Result = csv_scan:bin(Data, Options),
     ?assertEqual(Expected, Result).
 
-scan2_test() ->
+bin2_test() ->
     ExpectedData = [#{<<"Email">>        => <<"homer@springfield.com">>,
                       <<"Gentle">>       => <<"\"Mr.\" Simpson, Homer">>,
                       <<"Name">>         => <<"Homer Simpson">>,
@@ -195,19 +195,19 @@ scan2_test() ->
                 first_column_index  => 1,
                 first_row_is_header => true,
                 transform => #{<<"Phone Number">> => fun binary_to_integer/1}},
-    Result = csv:scan(Data, Options),
+    Result = csv_scan:bin(Data, Options),
     ?assertEqual(Expected, Result).
 
-scan3_test() ->
+bin3_test() ->
     Data = fake_csv_data(),
     Options = #{transform => #{3 => fun integer_to_binary/1}},
     ?assertMatch({error, {transform, Reason}} when is_map(Reason),
-                 csv:scan(Data, Options)).
+                 csv_scan:bin(Data, Options)).
 
-scan_file_test() ->
+file_test() ->
     Filename = "simpsons.csv",
     ok = file:write_file(Filename, fake_csv_data()),
-    ?assertMatch({ok, _}, csv:scan_file(Filename)),
+    ?assertMatch({ok, _}, csv_scan:file(Filename)),
     ok = file:delete(Filename).
 
 fake_csv_data() ->

@@ -6,30 +6,29 @@
 %%% @since 2022
 %%% @end
 %%%-----------------------------------------------------------------------------
--module(csv).
+-module(csv_scan).
 
 %% API
 -export([
-    scan_file/1,
-    scan_file/2,
-    scan/1,
-    scan/2
+    file/1,
+    file/2,
+    bin/1,
+    bin/2
 ]).
 
 %% Types that can be used from other modules -- alphabetically ordered.
--export_type([filename/0, scan_options/0, scan_result/0]).
+-export_type([filename/0, options/0, result/0]).
 
 %% Data types
--type column()          :: binary() | integer().
--type filename()        :: file:name_all().
--type read_file_error() :: file:posix() | badarg | terminated | system_limit.
--type scan_options()    :: #{first_row_index     => pos_integer(),
-                             first_column_index  => pos_integer(),
-                             first_row_is_header => boolean(),
-                             transform => transform()}.
--type scan_result()     :: {ok, [#{column() => term()}]}
-                           | {error, read_file_error()}.
--type transform()       :: #{column() => fun((binary()) -> term())}.
+-type column()    :: binary() | integer().
+-type filename()  :: file:name_all().
+-type options()   :: #{first_row_index     => pos_integer(),
+                       first_column_index  => pos_integer(),
+                       first_row_is_header => boolean(),
+                       transform => transform()}.
+-type result()    :: {ok, [#{column() => term()}]}
+                     | {error, file:posix() | badarg | terminated | system_limit}.
+-type transform() :: #{column() => fun((binary()) -> term())}.
 
 %%%=============================================================================
 %%% API
@@ -39,26 +38,26 @@
 %% @doc Scans a comma-separated values (CSV) file.
 %% @end
 %%------------------------------------------------------------------------------
--spec scan_file(Filename) -> ScanResult when
+-spec file(Filename) -> ScanResult when
     Filename   :: filename(),
-    ScanResult :: scan_result().
+    ScanResult :: result().
 
-scan_file(Filename) ->
+file(Filename) ->
     Options = maps:new(),
-    scan_file(Filename, Options).
+    file(Filename, Options).
 
 %%------------------------------------------------------------------------------
 %% @doc Scans a comma-separated values (CSV) file passing options.
 %% @end
 %%------------------------------------------------------------------------------
--spec scan_file(Filename, Options) -> ScanResult when
+-spec file(Filename, Options) -> ScanResult when
     Filename   :: filename(),
-    Options    :: scan_options(),
-    ScanResult :: scan_result().
+    Options    :: options(),
+    ScanResult :: result().
 
-scan_file(Filename, Options) ->
+file(Filename, Options) ->
     case file:read_file(Filename) of
-        {ok, Bin} -> scan(Bin, Options);
+        {ok, Bin} -> bin(Bin, Options);
         {error, Reason} -> {error, Reason}
     end.
 
@@ -66,24 +65,24 @@ scan_file(Filename, Options) ->
 %% @doc Scans a comma-separated values (CSV) binary.
 %% @end
 %%------------------------------------------------------------------------------
--spec scan(Bin) -> ScanResult when
+-spec bin(Bin) -> ScanResult when
     Bin        :: binary(),
-    ScanResult :: scan_result().
+    ScanResult :: result().
 
-scan(Bin) ->
+bin(Bin) ->
     Options = maps:new(),
-    scan(Bin, Options).
+    bin(Bin, Options).
 
 %%------------------------------------------------------------------------------
 %% @doc Scans a comma-separated values (CSV) binary passing options.
 %% @end
 %%------------------------------------------------------------------------------
--spec scan(Bin, Options) -> ScanResult when
+-spec bin(Bin, Options) -> ScanResult when
     Bin        :: binary(),
-    Options    :: scan_options(),
-    ScanResult :: scan_result().
+    Options    :: options(),
+    ScanResult :: result().
 
-scan(Bin, Options0) ->
+bin(Bin, Options0) ->
     In = data,
     Cursor = {1, 1},
     Cache = {#{}, <<>>},
