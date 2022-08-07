@@ -1,0 +1,157 @@
+-module(csv_test).
+
+-include_lib("eunit/include/eunit.hrl").
+
+scan_test() ->
+    ExpectedData = [#{<<"Email">>        => <<"homer@springfield.com">>,
+                      <<"Gentle">>       => <<"\"Mr.\" Simpson, Homer">>,
+                      <<"Name">>         => <<"Homer Simpson">>,
+                      <<"Phone Number">> => <<"5551234422">>},
+                    #{<<"Email">>        => <<"a@b.c">>,
+                      <<"Gentle">>       => <<"Skinner, Seymour">>,
+                      <<"Name">>         => <<"Seymour Skinner">>,
+                      <<"Phone Number">> => <<"1235663322">>},
+                    #{<<"Email">>        => <<"bart@spring.field">>,
+                      <<"Gentle">>       => <<"Simpson, Bart">>,
+                      <<"Name">>         => <<"Bart Simpson">>,
+                      <<"Phone Number">> => <<"2675465026">>},
+                    #{<<"Email">>        => <<"hi@bye.cya">>,
+                      <<"Gentle">>       => <<"Burns, Montgomery">>,
+                      <<"Name">>         => <<"Montgomery Burns">>,
+                      <<"Phone Number">> => <<"2233459922">>},
+                    #{<<"Email">>        => <<"mayor@springfield.gov">>,
+                      <<"Gentle">>       => <<"Quimby, Mayor">>,
+                      <<"Name">>         => <<"Mayor Quimby">>,
+                      <<"Phone Number">> => <<"2222222222">>},
+                    #{<<"Email">>        => <<"ok@hey.bye">>,
+                      <<"Gentle">>       => <<"Smithers, Waylon">>,
+                      <<"Name">>         => <<"Waylon Smithers">>,
+                      <<"Phone Number">> => <<"3333333333">>},
+                    #{<<"Email">>        => <<"barney@gumble.gum">>,
+                      <<"Gentle">>       => <<"Gumble, Barney">>,
+                      <<"Name">>         => <<"Barney Gumble">>,
+                      <<"Phone Number">> => <<"111111111111">>},
+                    #{<<"Email">>        => <<"marge@springfield.com">>,
+                      <<"Gentle">>       => <<"Simpson, Marge">>,
+                      <<"Name">>         => <<"Marge Simpson">>,
+                      <<"Phone Number">> => <<"2627338461">>},
+                    #{<<"Email">>        => <<"a@b.c">>,
+                      <<"Gentle">>       => <<"Krabappel, Edna">>,
+                      <<"Name">>         => <<"Edna Krabappel">>,
+                      <<"Phone Number">> => <<"2656898220">>},
+                    #{<<"Email">>        => <<"lisa@bix.com">>,
+                      <<"Gentle">>       => <<"Simpson, Lisa">>,
+                      <<"Name">>         => <<"Lisa Simpson">>,
+                      <<"Phone Number">> => <<"2222222222">>},
+                    #{<<"Email">>        => <<"maggie@spring.field">>,
+                      <<"Gentle">>       => <<"Simpson, Maggie">>,
+                      <<"Name">>         => <<"Maggie Simpson">>,
+                      <<"Phone Number">> => <<"2716017739">>},
+                    #{<<"Email">>        => <<"hire@now.me">>,
+                      <<"Gentle">>       => <<"Hutz, Linel">>,
+                      <<"Name">>         => <<"Linel Hutz">>,
+                      <<"Phone Number">> => <<"2745577499">>},
+                    #{<<"Email">>        => <<"troy@acting.now">>,
+                      <<"Gentle">>       => <<"McClure, Troy">>,
+                      <<"Name">>         => <<"Troy McClure">>,
+                      <<"Phone Number">> => <<"2314928822">>},
+                    #{<<"Email">>        => <<"rainer@acting.now">>,
+                      <<"Gentle">>       => <<"Wolfcastle, Rainer">>,
+                      <<"Name">>         => <<"Rainer Wolfcastle">>,
+                      <<"Phone Number">> => <<"2221114455">>}],
+    Expected = {ok, ExpectedData},
+    Data = fake_csv_data(),
+    Options = #{first_row_index     => 1,
+                first_column_index  => 1,
+                first_row_is_header => true},
+    Result = csv:scan(Data, Options),
+    ?assertEqual(Expected, Result).
+
+scan1_test() ->
+    ExpectedData = [#{<<1>> => <<"Homer Simpson">>,
+                      <<2>> => <<"\"Mr.\" Simpson, Homer">>,
+                      <<3>> => <<"5551234422">>,
+                      <<4>> => <<"homer@springfield.com">>},
+                    #{<<1>> => <<"Seymour Skinner">>,
+                      <<2>> => <<"Skinner, Seymour">>,
+                      <<3>> => <<"1235663322">>,
+                      <<4>> => <<"a@b.c">>},
+                    #{<<1>> => <<"Bart Simpson">>,
+                      <<2>> => <<"Simpson, Bart">>,
+                      <<3>> => <<"2675465026">>,
+                      <<4>> => <<"bart@spring.field">>},
+                    #{<<1>> => <<"Montgomery Burns">>,
+                      <<2>> => <<"Burns, Montgomery">>,
+                      <<3>> => <<"2233459922">>,
+                      <<4>> => <<"hi@bye.cya">>},
+                    #{<<1>> => <<"Mayor Quimby">>,
+                      <<2>> => <<"Quimby, Mayor">>,
+                      <<3>> => <<"2222222222">>,
+                      <<4>> => <<"mayor@springfield.gov">>},
+                    #{<<1>> => <<"Waylon Smithers">>,
+                      <<2>> => <<"Smithers, Waylon">>,
+                      <<3>> => <<"3333333333">>,
+                      <<4>> => <<"ok@hey.bye">>},
+                    #{<<1>> => <<"Barney Gumble">>,
+                      <<2>> => <<"Gumble, Barney">>,
+                      <<3>> => <<"111111111111">>,
+                      <<4>> => <<"barney@gumble.gum">>},
+                    #{<<1>> => <<"Marge Simpson">>,
+                      <<2>> => <<"Simpson, Marge">>,
+                      <<3>> => <<"2627338461">>,
+                      <<4>> => <<"marge@springfield.com">>},
+                    #{<<1>> => <<"Edna Krabappel">>,
+                      <<2>> => <<"Krabappel, Edna">>,
+                      <<3>> => <<"2656898220">>,
+                      <<4>> => <<"a@b.c">>},
+                    #{<<1>> => <<"Lisa Simpson">>,
+                      <<2>> => <<"Simpson, Lisa">>,
+                      <<3>> => <<"2222222222">>,
+                      <<4>> => <<"lisa@bix.com">>},
+                    #{<<1>> => <<"Maggie Simpson">>,
+                      <<2>> => <<"Simpson, Maggie">>,
+                      <<3>> => <<"2716017739">>,
+                      <<4>> => <<"maggie@spring.field">>},
+                    #{<<1>> => <<"Linel Hutz">>,
+                      <<2>> => <<"Hutz, Linel">>,
+                      <<3>> => <<"2745577499">>,
+                      <<4>> => <<"hire@now.me">>},
+                    #{<<1>> => <<"Troy McClure">>,
+                      <<2>> => <<"McClure, Troy">>,
+                      <<3>> => <<"2314928822">>,
+                      <<4>> => <<"troy@acting.now">>},
+                    #{<<1>> => <<"Rainer Wolfcastle">>,
+                      <<2>> => <<"Wolfcastle, Rainer">>,
+                      <<3>> => <<"2221114455">>,
+                      <<4>> => <<"rainer@acting.now">>}],
+    Expected = {ok, ExpectedData},
+    Data = fake_csv_data(),
+    Options = #{first_row_index     => 2,
+                first_column_index  => 1,
+                first_row_is_header => false},
+    Result = csv:scan(Data, Options),
+    ?assertEqual(Expected, Result).
+
+scan_file_test() ->
+    Filename = "simpsons.csv",
+    ok = file:write_file(Filename, fake_csv_data()),
+    ?assertMatch({ok, _}, csv:scan_file(Filename)),
+    ok = file:delete(Filename).
+
+fake_csv_data() ->
+    <<"Name,Gentle,Phone Number,Email
+Homer Simpson,\"\"Mr.\" Simpson, Homer\",5551234422,homer@springfield.com
+Seymour Skinner,\"Skinner, Seymour\",1235663322,a@b.c
+Bart Simpson,\"Simpson, Bart\",2675465026,bart@spring.field
+Montgomery Burns,\"Burns, Montgomery\",2233459922,hi@bye.cya
+Mayor Quimby,\"Quimby, Mayor\",2222222222,mayor@springfield.gov
+Waylon Smithers,\"Smithers, Waylon\",3333333333,ok@hey.bye
+Barney Gumble,\"Gumble, Barney\",111111111111,barney@gumble.gum
+Marge Simpson,\"Simpson, Marge\",2627338461,marge@springfield.com
+Edna Krabappel,\"Krabappel, Edna\",2656898220,a@b.c
+Lisa Simpson,\"Simpson, Lisa\",2222222222,lisa@bix.com
+Maggie Simpson,\"Simpson, Maggie\",2716017739,maggie@spring.field
+Linel Hutz,\"Hutz, Linel\",2745577499,hire@now.me
+Troy McClure,\"McClure, Troy\",2314928822,troy@acting.now
+Rainer Wolfcastle,\"Wolfcastle, Rainer\",2221114455,rainer@acting.now
+Krusty Clown,\"Clown, Krusty\",2321221188,krusty@acting.now">>.
