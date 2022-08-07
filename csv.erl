@@ -133,7 +133,12 @@ maybe_put_column(_Cursor, {RowAcc, ColAcc}, ColName, _Options) ->
     maps:put(ColName, ColAcc, RowAcc).
 
 concat_head_and_do_scan(H, Bin, In, Cursor, {RowAcc, ColAcc0}, Buffer0, Headers, Options, Acc) ->
-    ColAcc = <<ColAcc0/binary, H>>,
+    ColAcc = concat(ColAcc0, H),
     Cache = {RowAcc, ColAcc},
-    Buffer = <<Buffer0/binary, H>>,
+    Buffer = concat(Buffer0, H),
     do_scan(Bin, In, Cursor, Cache, Buffer, Headers, Options, Acc).
+
+concat(B1, B2) when is_integer(B2) ->
+    <<B1/binary, B2>>;
+concat(B1, B2) when is_binary(B2) ->
+    <<B1/binary, B2/binary>>.
