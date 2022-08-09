@@ -20,12 +20,10 @@ file(Filename) ->
     file(Filename, Options).
 
 file(Filename, Options0) ->
-    Options = maps:merge(default_scan_options(), Options0),
+    Options = maps:merge(do_default_options(), Options0),
     case do_file(Filename) of
         {ok,FileDescriptor} ->
-            Context = #{
-                headers => []
-            },
+            Context = do_context(Options),
             Table = do_table(Filename),
             case do_read_all_lines(FileDescriptor, Table, 1, Options, Context) of
                 {eof, Context1} ->
@@ -37,10 +35,13 @@ file(Filename, Options0) ->
             {error, Reason}
     end.
 
-default_scan_options() -> #{first_row_index     => 1,
-                            first_column_index  => 1,
-                            first_row_is_header => false,
-                            transform           => undefined}.
+do_default_options() -> #{first_row_index     => 1,
+                          first_column_index  => 1,
+                          first_row_is_header => false,
+                          transform           => undefined,
+                          headers             => []}.
+
+do_context(Options) -> #{headers => maps:get(headers, Options)}.
 
 do_file(Filename) ->
     file:open(Filename, [raw, read, read_ahead, binary]).
