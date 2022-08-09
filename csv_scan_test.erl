@@ -2,7 +2,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-bin_test() ->
+file_test() ->
     ExpectedData = [#{<<"Email">>        => <<"homer@springfield.com">>,
                       <<"Gentle">>       => <<"\"Mr.\" Simpson, Homer">>,
                       <<"Name">>         => <<"Homer Simpson">>,
@@ -59,15 +59,18 @@ bin_test() ->
                       <<"Gentle">>       => <<"Wolfcastle, Rainer">>,
                       <<"Name">>         => <<"Rainer Wolfcastle">>,
                       <<"Phone Number">> => <<"2221114455">>}],
-    Expected = {ok, ExpectedData},
-    Data = fake_csv_data(),
+    Expected = byte_size(crypto:hash(sha256, term_to_binary(ExpectedData))),
+    Filename = "simpsons.csv",
+    ok = file:write_file(Filename, fake_csv_data()),
     Options = #{first_row_index     => 1,
                 first_column_index  => 1,
                 first_row_is_header => true},
-    Result = csv_scan:bin(Data, Options),
-    ?assertEqual(Expected, Result).
+    {ok, ResultData} = csv_scan:file(Filename, Options),
+    Result = byte_size(crypto:hash(sha256, term_to_binary(ResultData))),
+    ?assertEqual(Expected, Result),
+    ok = file:delete(Filename).
 
-bin1_test() ->
+file1_test() ->
     ExpectedData = [#{1 => <<"Homer Simpson">>,
                       2 => <<"\"Mr.\" Simpson, Homer">>,
                       3 => <<"5551234422">>,
@@ -124,15 +127,18 @@ bin1_test() ->
                       2 => <<"Wolfcastle, Rainer">>,
                       3 => <<"2221114455">>,
                       4 => <<"rainer@acting.now">>}],
-    Expected = {ok, ExpectedData},
-    Data = fake_csv_data(),
+    Expected = byte_size(crypto:hash(sha256, term_to_binary(ExpectedData))),
+    Filename = "simpsons.csv",
+    ok = file:write_file(Filename, fake_csv_data()),
     Options = #{first_row_index     => 2,
                 first_column_index  => 1,
                 first_row_is_header => false},
-    Result = csv_scan:bin(Data, Options),
-    ?assertEqual(Expected, Result).
+    {ok, ResultData} = csv_scan:file(Filename, Options),
+    Result = byte_size(crypto:hash(sha256, term_to_binary(ResultData))),
+    ?assertEqual(Expected, Result),
+    ok = file:delete(Filename).
 
-bin2_test() ->
+file2_test() ->
     ExpectedData = [#{<<"Email">>        => <<"homer@springfield.com">>,
                       <<"Gentle">>       => <<"\"Mr.\" Simpson, Homer">>,
                       <<"Name">>         => <<"Homer Simpson">>,
@@ -189,25 +195,16 @@ bin2_test() ->
                       <<"Gentle">>       => <<"Wolfcastle, Rainer">>,
                       <<"Name">>         => <<"Rainer Wolfcastle">>,
                       <<"Phone Number">> => 2221114455}],
-    Expected = {ok, ExpectedData},
-    Data = fake_csv_data(),
+    Expected = byte_size(crypto:hash(sha256, term_to_binary(ExpectedData))),
+    Filename = "simpsons.csv",
+    ok = file:write_file(Filename, fake_csv_data()),
     Options = #{first_row_index     => 1,
                 first_column_index  => 1,
                 first_row_is_header => true,
-                transform => #{<<"Phone Number">> => fun binary_to_integer/1}},
-    Result = csv_scan:bin(Data, Options),
-    ?assertEqual(Expected, Result).
-
-bin3_test() ->
-    Data = fake_csv_data(),
-    Options = #{transform => #{3 => fun integer_to_binary/1}},
-    ?assertMatch({error, {transform, Reason}} when is_map(Reason),
-                 csv_scan:bin(Data, Options)).
-
-file_test() ->
-    Filename = "simpsons.csv",
-    ok = file:write_file(Filename, fake_csv_data()),
-    ?assertMatch({ok, _}, csv_scan:file(Filename)),
+                transform => fun(#{<<"Phone Number">> := PN} = Row) -> Row#{<<"Phone Number">> => binary_to_integer(PN)} end},
+    {ok, ResultData} = csv_scan:file(Filename, Options),
+    Result = byte_size(crypto:hash(sha256, term_to_binary(ResultData))),
+    ?assertEqual(Expected, Result),
     ok = file:delete(Filename).
 
 fake_csv_data() ->
