@@ -73,7 +73,7 @@ file(Filename, Options0) ->
             Table = do_new_table(Filename),
             case do_read_all_lines(FileDescriptor, Table, 1, Options, Context) of
                 {eof, Context1} ->
-                    case do_new_table_data_to_map(Table, Options, Context1) of
+                    case do_table_data_to_map(Table, Options, Context1) of
                         {ok, Data} ->
                             {ok, Data};
                         {error, Reason} ->
@@ -174,7 +174,7 @@ do_insert_row(Row, RowIndex, Table, Options) ->
     Data = erlang:list_to_tuple(Columns),
     ets:insert(Table, Data).
 
-do_new_table_data_to_map(Table, Options, Context0) ->
+do_table_data_to_map(Table, Options, Context0) ->
     Data = ets:tab2list(Table),
     {Rows, Context} = lists:foldl(
         fun(Columns, {Acc, #{headers := Headers, errors := Errors0} = Context1}) ->
