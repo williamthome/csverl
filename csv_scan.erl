@@ -6,6 +6,23 @@
     file/2
 ]).
 
+%% Types that can be used from other modules -- alphabetically ordered.
+-export_type([filename/0, options/0, result/0]).
+
+%% Data types
+-type filename()  :: file:name_all().
+-type options()   :: #{first_row_index     => pos_integer(),
+                       first_column_index  => pos_integer(),
+                       first_row_is_header => boolean(),
+                       transform           => transform(),
+                       headers             => [binary()]}.
+-type result()    :: {ok, [map()]}
+                     | {error, file:posix() | badarg | terminated | system_limit}.
+-type transform() :: fun((map()) -> map())
+                     | fun((pos_integer(), map()) -> map())
+                     | undefined.
+
+% Defines
 -define(NEW_LINE_BYTE_SIZE, byte_size(<<"\n">>)).
 -define(SPLIT_COLUMNS_RE,
     begin
@@ -15,25 +32,50 @@
     end
 ).
 
+%%%=============================================================================
+%%% API
+%%%=============================================================================
+
+%%------------------------------------------------------------------------------
+%% @doc Scans a comma-separated values (CSV) file.
+%% @end
+%%------------------------------------------------------------------------------
+-spec file(Filename) -> ScanResult when
+    Filename   :: filename(),
+    ScanResult :: result().
+
 file(Filename) ->
     Options = maps:new(),
     file(Filename, Options).
 
+%%------------------------------------------------------------------------------
+%% @doc Scans a comma-separated values (CSV) file passing options.
+%% @end
+%%------------------------------------------------------------------------------
+-spec file(Filename, Options) -> ScanResult when
+    Filename   :: filename(),
+    Options    :: options(),
+    ScanResult :: result().
+
 file(Filename, Options0) ->
     Options = maps:merge(do_default_options(), Options0),
-    case do_file(Filename) of
+    case file:open(Filename, [raw, read, read_ahead, binary]) of
         {ok,FileDescriptor} ->
             Context = do_context(Options),
-            Table = do_table(Filename),
+            Table = do_new_table(Filename),
             case do_read_all_lines(FileDescriptor, Table, 1, Options, Context) of
                 {eof, Context1} ->
-                    {ok, do_table_data_to_map(Table, Options, Context1)};
+                    {ok, do_new_table_data_to_map(Table, Options, Context1)};
                 {error, Reason} ->
                     {error, Reason}
             end;
         {error, Reason} ->
             {error, Reason}
     end.
+
+%%%=============================================================================
+%%% Internal functions
+%%%=============================================================================
 
 do_default_options() -> #{first_row_index     => 1,
                           first_column_index  => 1,
@@ -43,11 +85,8 @@ do_default_options() -> #{first_row_index     => 1,
 
 do_context(Options) -> #{headers => maps:get(headers, Options)}.
 
-do_file(Filename) ->
-    file:open(Filename, [raw, read, read_ahead, binary]).
-
-do_table(Filename) ->
-    Tablename = list_to_atom(Filename),
+do_new_table(Filename) ->
+    Tablename = erlang:list_to_atom(Filename),
     do_delete_table_if_exists(Tablename),
     Options = [ordered_set, {write_concurrency, true}, named_table, public],
     ets:new(Tablename, Options).
@@ -61,7 +100,20 @@ do_delete_table_if_exists(Table) ->
             true
     end.
 
-do_read_line(FileDescriptor, Table, RowIndex, #{first_row_index := FirstRow, first_row_is_header := FirstRowIsHeader} = Options, Context0) ->
+do_read_all_lines(FileDescriptor, Table, Index, Options, Context) ->
+    case do_read_line(FileDescriptor, Table, Index, Options, Context) of
+        {ok, {_Row, Context1}} ->
+            do_read_all_lines(FileDescriptor, Table, Index + 1, Options, Context1);
+        eof ->
+            {eof, Context};
+        {error, Reason} ->
+            {error, Reason}
+    end.
+
+do_read_line(FileDescriptor, Table, RowIndex,
+             #{first_row_index := FirstRow,
+               first_row_is_header := FirstRowIsHeader} = Options,
+             Context0) ->
     case file:read_line(FileDescriptor) of
         {ok, Row} ->
             Context =
@@ -70,22 +122,24 @@ do_read_line(FileDescriptor, Table, RowIndex, #{first_row_index := FirstRow, fir
                     false ->
                         case RowIndex =:= FirstRow andalso FirstRowIsHeader of
                             true ->
-                                Context0#{headers => do_columns(Row, Options)};
+                                Context0#{headers => do_split_row(Row, Options)};
                             false ->
-                                do_spawn_insert_row(Row, RowIndex, Table, Options),
+                                erlang:spawn(fun() ->
+                                    do_insert_row(Row, RowIndex, Table, Options)
+                                end),
                                 Context0
                         end
                 end,
             {ok, {Row, Context}};
         eof ->
-            do_close(FileDescriptor),
+            file:close(FileDescriptor),
             eof;
         {error, Reason} ->
-            do_close(FileDescriptor),
+            file:close(FileDescriptor),
             {error, Reason}
     end.
 
-do_columns(Row0, #{first_column_index := FirstColumn}) ->
+do_split_row(Row0, #{first_column_index := FirstColumn}) ->
     Row =
         case byte_size(Row0) of
             0 -> <<>>;
@@ -101,54 +155,29 @@ do_columns(Row0, #{first_column_index := FirstColumn}) ->
     end.
 
 do_insert_row(Row, RowIndex, Table, Options) ->
-    Columns = [RowIndex | do_columns(Row, Options)],
-    Data = list_to_tuple(Columns),
+    Columns = [RowIndex | do_split_row(Row, Options)],
+    Data = erlang:list_to_tuple(Columns),
     ets:insert(Table, Data).
 
-do_spawn_insert_row(Row, RowIndex, Table, Options) ->
-    spawn(fun() -> do_insert_row(Row, RowIndex, Table, Options) end).
-
-do_read_all_lines(FileDescriptor, Table, Index, Options, Context) ->
-    case do_read_line(FileDescriptor, Table, Index, Options, Context) of
-        {ok, {_Row, Context1}} ->
-            do_read_all_lines(FileDescriptor, Table, Index + 1, Options, Context1);
-        eof ->
-            {eof, Context};
-        {error, Reason} ->
-            {error, Reason}
-    end.
-
-do_close(FileDescriptor) ->
-    file:close(FileDescriptor).
-
-do_table_data(Table) ->
-    ets:tab2list(Table).
-
-do_table_data_to_map(Table, Options, #{headers := Headers}) ->
-    Data = do_table_data(Table),
+do_new_table_data_to_map(Table, Options, #{headers := Headers}) ->
+    Data = ets:tab2list(Table),
     lists:map(
         fun(Columns) ->
             [RowIndex | Values] = tuple_to_list(Columns),
-
-            Keys =
-                case Headers of
-                    [] ->
-                        lists:seq(1, length(Values));
-                    Headers ->
-                        Headers
-                end,
-
+            Keys = do_row_keys(Headers, Values),
             Proplist = lists:zip(Keys, Values),
             Row = maps:from_list(Proplist),
-
             do_transform(Row, RowIndex, Options)
         end,
         Data
     ).
 
+do_row_keys([], Values) -> lists:seq(1, length(Values));
+do_row_keys(Headers, _Values) -> Headers.
+
 do_transform(Row, _Index, #{transform := undefined}) ->
     Row;
-do_transform(Row, _Index, #{transform := Transform}) when is_function(Transform, 1) ->
-    Transform(Row);
-do_transform(Row, Index, #{transform := Transform}) when is_function(Transform, 2) ->
-    Transform(Index, Row).
+do_transform(Row, _Index, #{transform := Transf}) when is_function(Transf, 1) ->
+    Transf(Row);
+do_transform(Row, Index, #{transform := Transf}) when is_function(Transf, 2) ->
+    Transf(Index, Row).
