@@ -1,3 +1,11 @@
+%%%-----------------------------------------------------------------------------
+%%% @copyright (C) 2022, williamthome
+%%% @doc CSV scan module.
+%%%
+%%% @author William Fank Thomé [https://github.com/williamthome/]
+%%% @since 2022
+%%% @end
+%%%-----------------------------------------------------------------------------
 -module(csv_scan).
 
 %% API
