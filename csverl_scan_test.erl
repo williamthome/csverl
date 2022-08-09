@@ -1,4 +1,4 @@
--module(csv_scan_test).
+-module(csverl_scan_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -65,7 +65,7 @@ file_test() ->
     Options = #{first_row_index     => 1,
                 first_column_index  => 1,
                 first_row_is_header => true},
-    {ok, ResultData} = csv_scan:file(Filename, Options),
+    {ok, ResultData} = csverl_scan:file(Filename, Options),
     Result = byte_size(crypto:hash(sha256, term_to_binary(ResultData))),
     ?assertEqual(Expected, Result),
     ok = file:delete(Filename).
@@ -133,7 +133,7 @@ file1_test() ->
     Options = #{first_row_index     => 2,
                 first_column_index  => 1,
                 first_row_is_header => false},
-    {ok, ResultData} = csv_scan:file(Filename, Options),
+    {ok, ResultData} = csverl_scan:file(Filename, Options),
     Result = byte_size(crypto:hash(sha256, term_to_binary(ResultData))),
     ?assertEqual(Expected, Result),
     ok = file:delete(Filename).
@@ -202,7 +202,7 @@ file2_test() ->
                 first_column_index  => 1,
                 first_row_is_header => true,
                 transform => fun(#{<<"Phone Number">> := PN} = Row) -> Row#{<<"Phone Number">> => binary_to_integer(PN)} end},
-    {ok, ResultData} = csv_scan:file(Filename, Options),
+    {ok, ResultData} = csverl_scan:file(Filename, Options),
     Result = byte_size(crypto:hash(sha256, term_to_binary(ResultData))),
     ?assertEqual(Expected, Result),
     ok = file:delete(Filename).

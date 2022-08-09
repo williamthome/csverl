@@ -6,7 +6,7 @@
 %%% @since 2022
 %%% @end
 %%%-----------------------------------------------------------------------------
--module(csv).
+-module(csverl).
 
 %% API
 -export([
@@ -23,20 +23,20 @@
 %% @end
 %%------------------------------------------------------------------------------
 -spec scan_file(Filename) -> ScanResult when
-    Filename   :: csv_scan:filename(),
-    ScanResult :: csv_scan:result().
+    Filename   :: csverl_scan:filename(),
+    ScanResult :: csverl_scan:result().
 
 scan_file(Filename) ->
-    csv_scan:file(Filename).
+    csverl_scan:file(Filename).
 
 %%------------------------------------------------------------------------------
 %% @doc Scans a comma-separated values (CSV) file passing options.
 %% @end
 %%------------------------------------------------------------------------------
 -spec scan_file(Filename, Options) -> ScanResult when
-    Filename   :: csv_scan:filename(),
-    Options    :: csv_scan:options(),
-    ScanResult :: csv_scan:result().
+    Filename   :: csverl_scan:filename(),
+    Options    :: csverl_scan:options(),
+    ScanResult :: csverl_scan:result().
 
 scan_file(Filename, Options) ->
-    csv_scan:file(Filename, Options).
+    csverl_scan:file(Filename, Options).
