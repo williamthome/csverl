@@ -1,3 +1,5 @@
 *.beam
-*.csv
 *.log
+
+*.csv
+!samples/*.csv
