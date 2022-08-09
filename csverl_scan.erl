@@ -73,7 +73,13 @@ file(Filename, Options0) ->
             Table = do_new_table(Filename),
             case do_read_all_lines(FileDescriptor, Table, 1, Options, Context) of
                 {eof, Context1} ->
-                    {ok, do_new_table_data_to_map(Table, Options, Context1)};
+                    case do_new_table_data_to_map(Table, Options, Context1) of
+                        {ok, Data} ->
+                            {ok, Data};
+                        {error, Reason} ->
+                            ets:delete(Table),
+                            {error, Reason}
+                    end;
                 {error, Reason} ->
                     {error, Reason}
             end;
@@ -91,7 +97,8 @@ do_default_options() -> #{first_row_index     => 1,
                           transform           => undefined,
                           headers             => []}.
 
-do_context(Options) -> #{headers => maps:get(headers, Options)}.
+do_context(Options) -> #{headers => maps:get(headers, Options),
+                         errors  => []}.
 
 do_new_table(Filename) ->
     Tablename = erlang:list_to_atom(Filename),
@@ -167,25 +174,43 @@ do_insert_row(Row, RowIndex, Table, Options) ->
     Data = erlang:list_to_tuple(Columns),
     ets:insert(Table, Data).
 
-do_new_table_data_to_map(Table, Options, #{headers := Headers}) ->
+do_new_table_data_to_map(Table, Options, Context0) ->
     Data = ets:tab2list(Table),
-    lists:map(
-        fun(Columns) ->
+    {Rows, Context} = lists:foldl(
+        fun(Columns, {Acc, #{headers := Headers, errors := Errors0} = Context1}) ->
             [RowIndex | Values] = tuple_to_list(Columns),
             Keys = do_row_keys(Headers, Values),
             Proplist = lists:zip(Keys, Values),
             Row = maps:from_list(Proplist),
-            do_transform(Row, RowIndex, Options)
+            case do_transform(Row, RowIndex, Options) of
+                {ok, Transformed} ->
+                    {[Transformed | Acc], Context1};
+                {error, Errors1} ->
+                    Errors2 =
+                        lists:map(
+                            fun({Col, Reason}) ->
+                                [{row, {RowIndex, Row}}, {col, Col}, {reason, Reason}]
+                            end,
+                            Errors1
+                        ),
+                    Errors = lists:merge(Errors0, Errors2),
+                    {Acc, Context1#{errors => Errors}}
+            end
         end,
+        {[], Context0},
         Data
-    ).
+    ),
+    case Context of
+        #{errors := []} ->
+            {ok, Rows};
+        #{errors := Errors} ->
+            {error, Errors}
+    end.
 
 do_row_keys([], Values) -> lists:seq(1, length(Values));
 do_row_keys(Headers, _Values) -> Headers.
 
 do_transform(Row, _Index, #{transform := undefined}) ->
-    Row;
+    {ok, Row};
 do_transform(Row, _Index, #{transform := Transf}) when is_function(Transf, 1) ->
-    Transf(Row);
-do_transform(Row, Index, #{transform := Transf}) when is_function(Transf, 2) ->
-    Transf(Index, Row).
+    Transf(Row).
