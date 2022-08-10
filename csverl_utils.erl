@@ -1,3 +1,11 @@
+%%%-----------------------------------------------------------------------------
+%%% @copyright (C) 2022, williamthome
+%%% @doc CSV utils module.
+%%%
+%%% @author William Fank Thomé [https://github.com/williamthome/]
+%%% @since 2022
+%%% @end
+%%%-----------------------------------------------------------------------------
 -module(csverl_utils).
 
 -export([ binary_trim/1 ]).
