@@ -9,13 +9,10 @@
 -module(csverl_scan).
 
 %% API
--export([
-    file/1,
-    file/2
-]).
+-export([ file/1, file/2 ]).
 
 %% Types that can be used from other modules -- alphabetically ordered.
--export_type([filename/0, options/0, result/0]).
+-export_type([ filename/0, options/0, result/0 ]).
 
 %% Data types
 -type filename()  :: file:name_all().

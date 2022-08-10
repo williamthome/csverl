@@ -9,10 +9,7 @@
 -module(csverl).
 
 %% API
--export([
-    scan_file/1,
-    scan_file/2
-]).
+-export([ scan_file/1, scan_file/2 ]).
 
 %%%=============================================================================
 %%% API
