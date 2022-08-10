@@ -161,7 +161,7 @@ do_split_row(Row0, #{first_column_index := FirstColumn, trim := Trim}) ->
     List0 = re:split(Row, ?SPLIT_COLUMNS_RE),
     List =
         case Trim of
-            true -> lists:map(fun binary_trim/1, List0);
+            true -> lists:map(fun csverl_utils:binary_trim/1, List0);
             false -> List0
         end,
     case FirstColumn =:= 1 of
@@ -214,21 +214,3 @@ do_transform(Row, _Index, #{transform := undefined}) ->
     {ok, Row};
 do_transform(Row, _Index, #{transform := Transf}) when is_function(Transf, 1) ->
     Transf(Row).
-
-binary_trim(Bin) ->
-    do_binary_trim(Bin, init, <<>>, <<>>).
-
-do_binary_trim(<<" ", Bin/binary>>, init, <<>>, <<>>) ->
-    do_binary_trim(Bin, init, <<>>, <<>>);
-do_binary_trim(<<H, Bin/binary>>, init, <<>>, <<>>) ->
-    do_binary_trim(Bin, acc, <<>>, <<H>>);
-do_binary_trim(<<" ", Bin/binary>>, acc, Cache, Acc) ->
-    do_binary_trim(Bin, cache, <<Cache/binary, " ">>, Acc);
-do_binary_trim(<<H, Bin/binary>>, acc, Cache, Acc) ->
-    do_binary_trim(Bin, acc, Cache, <<Acc/binary, H>>);
-do_binary_trim(<<" ", Bin/binary>>, cache, Cache, Acc) ->
-    do_binary_trim(Bin, cache, <<Cache/binary, " ">>, Acc);
-do_binary_trim(<<H, Bin/binary>>, cache, Cache, Acc) ->
-    do_binary_trim(Bin, acc, <<>>, <<Acc/binary, Cache/binary, H>>);
-do_binary_trim(<<>>, _Cursor, _Cache, Acc) ->
-    Acc.
