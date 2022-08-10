@@ -73,13 +73,7 @@ file(Filename, Options0) ->
             Table = do_new_table(Filename),
             case do_read_all_lines(FileDescriptor, Table, 1, Options, Context) of
                 {eof, Context1} ->
-                    case do_table_data_to_map(Table, Options, Context1) of
-                        {ok, Data} ->
-                            {ok, Data};
-                        {error, Reason} ->
-                            ets:delete(Table),
-                            {error, Reason}
-                    end;
+                    do_table_data_to_map(Table, Options, Context1);
                 {error, Reason} ->
                     {error, Reason}
             end;
@@ -95,7 +89,8 @@ do_default_options() -> #{first_row_index     => 1,
                           first_column_index  => 1,
                           first_row_is_header => false,
                           transform           => undefined,
-                          headers             => []}.
+                          headers             => [],
+                          trim                => false}.
 
 do_context(Options) -> #{headers => maps:get(headers, Options),
                          errors  => []}.
@@ -154,7 +149,7 @@ do_read_line(FileDescriptor, Table, RowIndex,
             {error, Reason}
     end.
 
-do_split_row(Row0, #{first_column_index := FirstColumn}) ->
+do_split_row(Row0, #{first_column_index := FirstColumn, trim := Trim}) ->
     Row =
         case byte_size(Row0) of
             0 -> <<>>;
@@ -164,9 +159,14 @@ do_split_row(Row0, #{first_column_index := FirstColumn}) ->
                 Row1
         end,
     List0 = re:split(Row, ?SPLIT_COLUMNS_RE),
+    List =
+        case Trim of
+            true -> lists:map(fun binary_trim/1, List0);
+            false -> List0
+        end,
     case FirstColumn =:= 1 of
-        true -> List0;
-        false -> lists:sublist(List0, FirstColumn, length(List0))
+        true -> List;
+        false -> lists:sublist(List0, FirstColumn, length(List))
     end.
 
 do_insert_row(Row, RowIndex, Table, Options) ->
@@ -214,3 +214,21 @@ do_transform(Row, _Index, #{transform := undefined}) ->
     {ok, Row};
 do_transform(Row, _Index, #{transform := Transf}) when is_function(Transf, 1) ->
     Transf(Row).
+
+binary_trim(Bin) ->
+    do_binary_trim(Bin, init, <<>>, <<>>).
+
+do_binary_trim(<<" ", Bin/binary>>, init, <<>>, <<>>) ->
+    do_binary_trim(Bin, init, <<>>, <<>>);
+do_binary_trim(<<H, Bin/binary>>, init, <<>>, <<>>) ->
+    do_binary_trim(Bin, acc, <<>>, <<H>>);
+do_binary_trim(<<" ", Bin/binary>>, acc, Cache, Acc) ->
+    do_binary_trim(Bin, cache, <<Cache/binary, " ">>, Acc);
+do_binary_trim(<<H, Bin/binary>>, acc, Cache, Acc) ->
+    do_binary_trim(Bin, acc, Cache, <<Acc/binary, H>>);
+do_binary_trim(<<" ", Bin/binary>>, cache, Cache, Acc) ->
+    do_binary_trim(Bin, cache, <<Cache/binary, " ">>, Acc);
+do_binary_trim(<<H, Bin/binary>>, cache, Cache, Acc) ->
+    do_binary_trim(Bin, acc, <<>>, <<Acc/binary, Cache/binary, H>>);
+do_binary_trim(<<>>, _Cursor, _Cache, Acc) ->
+    Acc.
